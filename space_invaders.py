@@ -4,7 +4,7 @@ from settings import Settings
 from ship import Ship
 from bullet import Bullet
 
-class AlienInvasion:
+class SpaceInvasion:
 
     def __init__(self):
         pygame.init()
@@ -16,7 +16,7 @@ class AlienInvasion:
         self.settings.screen_width = self.screen.get_rect().width
         self.settings.screen_height = self.screen.get_rect().height
         
-        pygame.display.set_caption("Alien Invasion")
+        pygame.display.set_caption("Space Invasion")
         self.ship = Ship(self)
         self.bullets = pygame.sprite.Group()
 
@@ -82,5 +82,5 @@ class AlienInvasion:
         pygame.display.flip()
 
 if __name__ == '__main__':
-    ai = AlienInvasion()
-    ai.start_game()
+    si = SpaceInvasion()
+    si.start_game()
