@@ -3,6 +3,7 @@ import pygame
 from settings import Settings
 from ship import Ship
 from bullet import Bullet
+from fleet import Fleet
 
 class SpaceInvasion:
 
@@ -19,13 +20,18 @@ class SpaceInvasion:
         pygame.display.set_caption("Space Invasion")
         self.ship = Ship(self)
         self.bullets = pygame.sprite.Group()
+        self.fleet = pygame.sprite.Group()
+        self._create_fleet()
+
 
     def start_game(self):
         while True:
             self._check_events()
             self.ship.update()
             self._update_bullets()    
+            self._update_fleet()
             self._update_screen()
+            
             
     def _update_bullets(self):
         """Updates position of bullets and deletes old bullets"""
@@ -35,6 +41,29 @@ class SpaceInvasion:
         for bullet in self.bullets.copy():
             if bullet.rect.bottom <= 0:
                 self.bullets.remove(bullet)
+        self._check_bullet_enemy_collision()
+
+
+    def _check_bullet_enemy_collision(self):
+        """Respond to bullet-enemy collision"""
+        #The two True delete the bullet and the enemy respectively 
+        collisions = pygame.sprite.groupcollide(
+            self.bullets, self.fleet, True, True)
+
+        if not self.fleet:
+            #Destroy existing bullets and creates new fleet
+            self.bullets.empty()
+            self._create_fleet()
+        
+
+    def _update_fleet(self):
+        """Updates the position of all aliens in the fleet"""
+        self._check_fleet_edges()
+        self.fleet.update()
+        #Look for enemy-ship collison
+        if pygame.sprite.spritecollideany(self.ship, self.fleet):
+            print("Ship hit!!")
+
 
     def _check_events(self):
         for event in pygame.event.get():
@@ -78,9 +107,56 @@ class SpaceInvasion:
         self.ship.blitme()
         for bullet in self.bullets.sprites():
             bullet.draw_bullet()
+        self.fleet.draw(self.screen)
         #Makes the most recently drawn screen visible
         pygame.display.flip()
 
+    
+    def _create_fleet(self):
+        """Creates the fleet of enemies."""
+        #Creates an enemy and find the number of enemies in a row
+        #Spacing between each ship is equal to one ship width
+        enemy = Fleet(self)
+        enemy_width, enemy_height = enemy.rect.size
+        available_space_x = self.settings.screen_width - (2 * enemy_width)
+        number_enemies_x = available_space_x //  (2 * enemy_width)
+
+        ship_height = self.ship.rect.height
+        available_space_y = self.settings.screen_height - (3 * enemy_height) - ship_height
+        number_rows = available_space_y // (2 * enemy_height)
+
+        #Creates the full fleet
+        for row_number in range(number_rows):
+            for enemy_number in range(number_enemies_x):
+                self._create_enemy(enemy_number, row_number)
+            
+
+    
+    def _create_enemy(self, enemy_number, row_number):
+        """Creates an enemy and place it in a row"""
+        enemy = Fleet(self)
+        enemy_width, enemy_height = enemy.rect.size
+        enemy.x = enemy_width + 2 * enemy_width * enemy_number
+        enemy.rect.x = enemy.x
+        enemy.rect.y = 0.5 * enemy.rect.height + 2 * enemy.rect.height *  row_number
+        self.fleet.add(enemy)
+
+
+    def _check_fleet_edges(self):
+        """Responds appropriately if any ships have reached an edge"""
+        for enemy in self.fleet.sprites():
+            if enemy.check_edges():
+                self._change_fleet_direction()
+                break   
+
+    
+    def _change_fleet_direction(self):
+        """Drop the entire fleet and change fleet's direction"""
+        for enemy in self.fleet.sprites():
+            enemy.rect.y += self.settings.fleet_drop_speed
+        self.settings.fleet_direction *= -1
+
+
 if __name__ == '__main__':
     si = SpaceInvasion()
-    si.start_game()
+    si.start_game() 
