@@ -4,6 +4,7 @@ class Settings:
         self.screen_height = 650
         self.bg_color = (0, 0, 0)
         self.ship_speed = 2
+        self.ship_limit = 3
 
         #Bullet settings
         self.bullet_speed = 1.5
@@ -14,7 +15,7 @@ class Settings:
 
         #Fleet settings
         self.enemy_speed = 1.0
-        self.fleet_drop_speed = 10
+        self.fleet_drop_speed = 15
         #1 represents right; -1 represents left
         self.fleet_direction = 1
         

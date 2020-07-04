@@ -1,6 +1,8 @@
 import sys
+from time import sleep
 import pygame
 from settings import Settings
+from game_stats import GameStats
 from ship import Ship
 from bullet import Bullet
 from fleet import Fleet
@@ -18,6 +20,10 @@ class SpaceInvasion:
         self.settings.screen_height = self.screen.get_rect().height
         
         pygame.display.set_caption("Space Invasion")
+
+        #Creates an instance to store game statistics
+        self.stats = GameStats(self)
+
         self.ship = Ship(self)
         self.bullets = pygame.sprite.Group()
         self.fleet = pygame.sprite.Group()
@@ -25,11 +31,13 @@ class SpaceInvasion:
 
 
     def start_game(self):
+        """Executes the main loop of the game"""
         while True:
             self._check_events()
-            self.ship.update()
-            self._update_bullets()    
-            self._update_fleet()
+            if self.stats.game_active:
+                self.ship.update()
+                self._update_bullets()    
+                self._update_fleet()
             self._update_screen()
             
             
@@ -60,9 +68,31 @@ class SpaceInvasion:
         """Updates the position of all aliens in the fleet"""
         self._check_fleet_edges()
         self.fleet.update()
-        #Look for enemy-ship collison
         if pygame.sprite.spritecollideany(self.ship, self.fleet):
-            print("Ship hit!!")
+            self._ship_hit()
+
+        #Look for fleet hitting the bottom of the screen
+        self._check_fleet_bottom()
+    
+
+    def _ship_hit(self):
+        """Respond to the ship being hit by enemy"""
+        if self.stats.ships_left > 0:
+            self.stats.ships_left -= 1
+            #Look for enemy-ship collison
+
+            #Get rid of any remaining fleet and bullets
+            self.fleet.empty()
+            self.bullets.empty()
+
+            #Create a new fleet and center the ship
+            self._create_fleet()
+            self.ship.center_ship()
+
+            #Pause
+            sleep(0.5)
+        else:
+            self.stats.game_active = False
 
 
     def _check_events(self):
@@ -128,8 +158,7 @@ class SpaceInvasion:
         #Creates the full fleet
         for row_number in range(number_rows):
             for enemy_number in range(number_enemies_x):
-                self._create_enemy(enemy_number, row_number)
-            
+                self._create_enemy(enemy_number, row_number)            
 
     
     def _create_enemy(self, enemy_number, row_number):
@@ -155,6 +184,16 @@ class SpaceInvasion:
         for enemy in self.fleet.sprites():
             enemy.rect.y += self.settings.fleet_drop_speed
         self.settings.fleet_direction *= -1
+
+
+    def _check_fleet_bottom(self):
+        """Check if the fleet has reached the bottom of the screen"""
+        screen_rect = self.screen.get_rect()
+        for enemy in self.fleet.sprites():
+            if enemy.rect.bottom >= screen_rect.bottom:
+                #Treat this the same as if the ship got hit
+                self._ship_hit()
+                break
 
 
 if __name__ == '__main__':
