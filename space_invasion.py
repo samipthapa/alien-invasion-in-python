@@ -6,6 +6,8 @@ from game_stats import GameStats
 from ship import Ship
 from bullet import Bullet
 from fleet import Fleet
+from button import Button
+from scoreboard import Scoreboard
 
 class SpaceInvasion:
 
@@ -13,7 +15,8 @@ class SpaceInvasion:
         pygame.init()
         self.settings = Settings()
 
-        # self.screen = pygame.display.set_mode((self.settings.screen_width, self.settings.screen_height))
+        # self.screen = pygame.display.set_mode((self.settings.screen_width,
+        #      self.settings.screen_height))
 
         self.screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
         self.settings.screen_width = self.screen.get_rect().width
@@ -21,13 +24,18 @@ class SpaceInvasion:
         
         pygame.display.set_caption("Space Invasion")
 
-        #Creates an instance to store game statistics
+        #Creates an instance to store game statistics,
+        #   and create a scoreboard
         self.stats = GameStats(self)
+        self.sb = Scoreboard(self)
 
         self.ship = Ship(self)
         self.bullets = pygame.sprite.Group()
         self.fleet = pygame.sprite.Group()
         self._create_fleet()
+
+        #Make the play button
+        self.play_button = Button(self, "Play")
 
 
     def start_game(self):
@@ -58,10 +66,21 @@ class SpaceInvasion:
         collisions = pygame.sprite.groupcollide(
             self.bullets, self.fleet, True, True)
 
+        if collisions:
+            for enemies in collisions.values():
+                self.stats.score += self.settings.enemy_points * len(enemies)
+            self.sb.prep_score()
+            self.sb.check_high_score()
+
         if not self.fleet:
             #Destroy existing bullets and creates new fleet
             self.bullets.empty()
             self._create_fleet()
+            self.settings.increase_speed()
+
+            #Increase level
+            self.stats.level += 1
+            self.sb.prep_level()
         
 
     def _update_fleet(self):
@@ -78,8 +97,9 @@ class SpaceInvasion:
     def _ship_hit(self):
         """Respond to the ship being hit by enemy"""
         if self.stats.ships_left > 0:
+            #Decrements ships left and updates the scoreboard
             self.stats.ships_left -= 1
-            #Look for enemy-ship collison
+            self.sb.prep_ships()
 
             #Get rid of any remaining fleet and bullets
             self.fleet.empty()
@@ -93,6 +113,7 @@ class SpaceInvasion:
             sleep(0.5)
         else:
             self.stats.game_active = False
+            pygame.mouse.set_visible(True)
 
 
     def _check_events(self):
@@ -103,7 +124,33 @@ class SpaceInvasion:
                     self._check_keydown_events(event)
                 elif event.type == pygame.KEYUP:
                     self._check_keyup_events(event)
-                    
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    mouse_pos = pygame.mouse.get_pos()
+                    self._check_play_button(mouse_pos)
+
+    
+    def _check_play_button(self, mouse_pos):
+        """Starts a new game when the player clicks the button"""
+        button_clicked = self.play_button.rect.collidepoint(mouse_pos)
+        if button_clicked and not self.stats.game_active:
+            #Reset the game statistics
+            self.settings.initialize_dynamic_settings()
+            self.stats.reset_stats()
+            self.stats.game_active = True
+            self.sb.prep_score()
+            self.sb.prep_level()
+            self.sb.prep_ships()
+
+            #Get rid of any remaining fleet and bullets
+            self.fleet.empty()
+            self.bullets.empty()
+
+            #Create a new fleet and center the ship
+            self._create_fleet()
+            self.ship.center_ship()
+            #Hide the mouse cursor
+            pygame.mouse.set_visible(False)
+
 
     def _check_keydown_events(self, event):
         """Responds to keypress"""
@@ -138,8 +185,16 @@ class SpaceInvasion:
         for bullet in self.bullets.sprites():
             bullet.draw_bullet()
         self.fleet.draw(self.screen)
+
+        #Draw the score information
+        self.sb.show_score()
+
+        #Draw the play button if the game is inactive
+        if not self.stats.game_active:
+            self.play_button.draw_button()
         #Makes the most recently drawn screen visible
         pygame.display.flip()
+        
 
     
     def _create_fleet(self):
@@ -167,7 +222,7 @@ class SpaceInvasion:
         enemy_width, enemy_height = enemy.rect.size
         enemy.x = enemy_width + 2 * enemy_width * enemy_number
         enemy.rect.x = enemy.x
-        enemy.rect.y = 0.5 * enemy.rect.height + 2 * enemy.rect.height *  row_number
+        enemy.rect.y = enemy.rect.height + 2 * enemy.rect.height *  row_number
         self.fleet.add(enemy)
 
 
